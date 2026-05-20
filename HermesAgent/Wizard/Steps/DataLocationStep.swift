@@ -3,7 +3,7 @@ import SwiftUI
 
 struct DataLocationStep: View {
     @ObservedObject var coordinator: WizardCoordinator
-    @AppStorage(AppSettingKeys.dataLocation) private var dataLocation = Paths.applicationSupportDirectory.path
+    @AppStorage(AppSettingKeys.dataLocation) private var dataLocation = Paths.defaultDataDirectory.path
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -23,7 +23,7 @@ struct DataLocationStep: View {
             .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
 
             Button(L("Use Default")) {
-                dataLocation = Paths.applicationSupportDirectory.path
+                dataLocation = Paths.defaultDataDirectory.path
             }
 
             Spacer()

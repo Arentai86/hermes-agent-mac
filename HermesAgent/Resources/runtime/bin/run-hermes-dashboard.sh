@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PORT="9119"
-DATA_DIR="${HOME}/Library/Application Support/Hermes Agent"
+DATA_DIR="${HOME}/.hermes"
 TOKEN_FILE=""
 
 while [ "$#" -gt 0 ]; do

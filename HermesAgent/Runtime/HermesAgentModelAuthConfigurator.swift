@@ -244,32 +244,52 @@ struct HermesAgentModelAuthConfigurator {
         codexOrder: [String],
         dataDirectory: URL
     ) throws {
-        let agentDirectory = dataDirectory
-            .appendingPathComponent("state", isDirectory: true)
-            .appendingPathComponent("agents", isDirectory: true)
-            .appendingPathComponent("main", isDirectory: true)
-            .appendingPathComponent("agent", isDirectory: true)
-        try FileManager.default.createDirectory(at: agentDirectory, withIntermediateDirectories: true)
-        let authURL = agentDirectory.appendingPathComponent("auth-profiles.json")
+        try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
+        let authURL = dataDirectory.appendingPathComponent("auth.json")
+        var root = readJSONDictionary(at: authURL) ?? ["version": 1, "providers": [:]]
 
-        var root = readJSONDictionary(at: authURL) ?? ["version": 1, "profiles": [:]]
-        var existingProfiles = root["profiles"] as? [String: Any] ?? [:]
-        for (profileID, profile) in profiles {
-            existingProfiles[profileID] = profile
-        }
-        root["profiles"] = existingProfiles
+        var providers = root["providers"] as? [String: Any] ?? [:]
+        var credentialPool = root["credential_pool"] as? [String: Any] ?? [:]
 
-        var order = root["order"] as? [String: Any] ?? [:]
-        if !openAIOrder.isEmpty {
-            order["openai"] = openAIOrder
-        }
-        if !codexOrder.isEmpty {
-            order["openai-codex"] = codexOrder
-        }
-        if !order.isEmpty {
-            root["order"] = order
+        if let profileID = codexOrder.first,
+           let profile = profiles[profileID],
+           let access = profile["access"] as? String,
+           let refresh = profile["refresh"] as? String {
+            var tokens: [String: Any] = [
+                "access_token": access,
+                "refresh_token": refresh
+            ]
+            if let idToken = profile["idToken"] as? String {
+                tokens["id_token"] = idToken
+            }
+            if let accountID = profile["accountId"] as? String {
+                tokens["account_id"] = accountID
+            }
+
+            providers["openai-codex"] = [
+                "tokens": tokens,
+                "last_refresh": iso8601Now(),
+                "auth_mode": "chatgpt"
+            ]
+            root["active_provider"] = "openai-codex"
+            credentialPool["openai-codex"] = [
+                [
+                    "id": stableCredentialID(from: profileID),
+                    "label": profile["email"] as? String ?? "Codex",
+                    "auth_type": "oauth",
+                    "priority": 0,
+                    "source": "device_code",
+                    "access_token": access,
+                    "refresh_token": refresh,
+                    "base_url": "https://chatgpt.com/backend-api/codex",
+                    "expires_at_ms": profile["expires"] as? Int64 ?? 0,
+                    "last_refresh": iso8601Now()
+                ]
+            ]
         }
 
+        root["providers"] = providers
+        root["credential_pool"] = credentialPool
         try writeJSONDictionary(root, to: authURL, permissions: S_IRUSR | S_IWUSR)
     }
 
@@ -279,46 +299,38 @@ struct HermesAgentModelAuthConfigurator {
         codexOrder: [String],
         dataDirectory: URL
     ) throws {
-        let stateDirectory = dataDirectory.appendingPathComponent("state", isDirectory: true)
-        try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
-        let configURL = stateDirectory.appendingPathComponent("hermes.json")
+        try FileManager.default.createDirectory(at: dataDirectory, withIntermediateDirectories: true)
+        let configURL = dataDirectory.appendingPathComponent("config.yaml")
+        guard !FileManager.default.fileExists(atPath: configURL.path) else { return }
 
-        var root = readJSONDictionary(at: configURL) ?? [:]
+        let provider = codexOrder.isEmpty ? "auto" : "openai-codex"
+        let yaml = """
+        # Created by Hermes Agent for macOS on first launch.
+        model:
+          provider: \(provider)
+          default: gpt-5.5
+        toolsets:
+          - hermes-cli
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+        chmod(configURL.path, S_IRUSR | S_IWUSR)
+    }
 
-        var plugins = root["plugins"] as? [String: Any] ?? [:]
-        var pluginEntries = plugins["entries"] as? [String: Any] ?? [:]
-        pluginEntries["openai"] = mergeDictionary(pluginEntries["openai"], with: ["enabled": true])
-        plugins["entries"] = pluginEntries
-        root["plugins"] = plugins
+    private func stableCredentialID(from value: String) -> String {
+        let sanitized = value
+            .lowercased()
+            .unicodeScalars
+            .map { scalar -> Character in
+                CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : "-"
+            }
+        let id = String(sanitized)
+            .replacingOccurrences(of: "-+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return id.isEmpty ? "codex" : String(id.prefix(48))
+    }
 
-        var agents = root["agents"] as? [String: Any] ?? [:]
-        var defaults = agents["defaults"] as? [String: Any] ?? [:]
-        defaults["model"] = mergeDictionary(defaults["model"], with: ["primary": "openai/gpt-5.5"])
-        var models = defaults["models"] as? [String: Any] ?? [:]
-        models["openai/gpt-5.5"] = mergeDictionary(models["openai/gpt-5.5"], with: ["alias": "GPT"])
-        defaults["models"] = models
-        agents["defaults"] = defaults
-        root["agents"] = agents
-
-        var auth = root["auth"] as? [String: Any] ?? [:]
-        var authProfiles = auth["profiles"] as? [String: Any] ?? [:]
-        for (profileID, metadata) in metadataProfiles {
-            authProfiles[profileID] = mergeDictionary(authProfiles[profileID], with: metadata)
-        }
-        auth["profiles"] = authProfiles
-        var authOrder = auth["order"] as? [String: Any] ?? [:]
-        if !openAIOrder.isEmpty {
-            authOrder["openai"] = openAIOrder
-        }
-        if !codexOrder.isEmpty {
-            authOrder["openai-codex"] = codexOrder
-        }
-        if !authOrder.isEmpty {
-            auth["order"] = authOrder
-        }
-        root["auth"] = auth
-
-        try writeJSONDictionary(root, to: configURL, permissions: S_IRUSR | S_IWUSR)
+    private func iso8601Now() -> String {
+        ISO8601DateFormatter().string(from: Date())
     }
 
     private func mergeDictionary(_ existing: Any?, with updates: [String: Any]) -> [String: Any] {

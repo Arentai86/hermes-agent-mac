@@ -29,6 +29,7 @@ final class ServerManager {
 
         let token = try AuthToken.ensureToken(in: dataDirectory)
         try runtime.prepareRuntimeConfiguration(port: preferredPort, token: token, dataDirectory: dataDirectory)
+        try HermesAgentModelAuthConfigurator().prepareModelAuth(dataDirectory: dataDirectory)
         let logURL = Paths.logsDirectory.appendingPathComponent("server.log")
         let process = try ServerProcess(
             executableURL: runtime.nodeExecutableURL(),

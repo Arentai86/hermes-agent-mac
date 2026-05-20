@@ -5,7 +5,7 @@ struct ServerTab: View {
     @EnvironmentObject private var appState: AppState
     @AppStorage(AppSettingKeys.serverPort) private var serverPort = 9119
     @AppStorage(AppSettingKeys.autoRestartServer) private var autoRestartServer = true
-    @AppStorage(AppSettingKeys.dataLocation) private var dataLocation = Paths.applicationSupportDirectory.path
+    @AppStorage(AppSettingKeys.dataLocation) private var dataLocation = Paths.defaultDataDirectory.path
     @AppStorage(AppSettingKeys.maxLogSizeMB) private var maxLogSizeMB = 25
 
     var body: some View {

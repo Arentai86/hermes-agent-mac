@@ -105,6 +105,7 @@ struct RuntimeInstaller {
 
         try installRunner()
         try normalizeServerEntryPoint()
+        try restoreBundledWebDashboardIfMissing()
         try validateInstalledRuntime()
         try writeManifest(source: source, serverRef: serverRef)
         await MainActor.run { progress(Progress(fraction: 1.0, stage: L("Runtime ready"))) }
@@ -278,6 +279,29 @@ struct RuntimeInstaller {
         guard FileManager.default.fileExists(atPath: serverFolderURL.appendingPathComponent("hermes_cli/web_dist/index.html").path) else {
             throw InstallError.missingWebDashboard
         }
+    }
+
+    private func restoreBundledWebDashboardIfMissing() throws {
+        let installedWebDashboard = serverFolderURL.appendingPathComponent("hermes_cli/web_dist", isDirectory: true)
+        let installedIndex = installedWebDashboard.appendingPathComponent("index.html")
+        guard !FileManager.default.fileExists(atPath: installedIndex.path) else {
+            return
+        }
+
+        let bundledWebDashboard = RuntimeBundle()
+            .bundledRuntimeDirectory
+            .appendingPathComponent("server/hermes_cli/web_dist", isDirectory: true)
+        let bundledIndex = bundledWebDashboard.appendingPathComponent("index.html")
+        guard FileManager.default.fileExists(atPath: bundledIndex.path) else {
+            return
+        }
+
+        let parent = installedWebDashboard.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: installedWebDashboard.path) {
+            try FileManager.default.removeItem(at: installedWebDashboard)
+        }
+        try FileManager.default.copyItem(at: bundledWebDashboard, to: installedWebDashboard)
     }
 
     // MARK: - Manifest / cleanup

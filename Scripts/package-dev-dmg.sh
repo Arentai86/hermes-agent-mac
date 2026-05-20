@@ -133,7 +133,7 @@ echo "Creating DMG"
 mkdir -p "$STAGING"
 cp -R "$APP" "$STAGING/HermesAgent.app"
 ln -s /Applications "$STAGING/Applications"
-hdiutil create -volname "Hermes Agent Test" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
+hdiutil create -volname "Hermes Agent" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
 hdiutil verify "$DMG"
 
 echo "Mount-testing DMG"
@@ -149,7 +149,10 @@ test -f "$MOUNT_POINT/HermesAgent.app/Contents/Resources/OpenzenMark.png"
 test -x "$MOUNT_POINT/HermesAgent.app/Contents/Resources/runtime/bin/run-hermes-dashboard.sh"
 test -f "$MOUNT_POINT/HermesAgent.app/Contents/Resources/runtime/server/hermes_cli/web_dist/index.html"
 test "$(find "$MOUNT_POINT/HermesAgent.app/Contents/Resources/skills" -maxdepth 2 -type f -name SKILL.md | wc -l | tr -d ' ')" -gt 0
-hdiutil detach "$MOUNT_POINT"
+hdiutil detach "$MOUNT_POINT" || {
+  sleep 2
+  hdiutil detach "$MOUNT_POINT"
+}
 
 echo "Cleaning packaging intermediates"
 rm -rf "$BUILD_DIR/test" "$STAGING" "$BUILD_DIR/runtime-smoke.log" "$TEST_HOME" "$MODULE_CACHE" "$ARCH_BUILD_DIR"

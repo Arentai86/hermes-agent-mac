@@ -7,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if shouldQuitAfterDiskImageWarning() {
+            return
+        }
 
         let updateManager = UpdateManager()
         self.updateManager = updateManager
@@ -41,5 +44,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 break
             }
         }
+    }
+
+    private func shouldQuitAfterDiskImageWarning() -> Bool {
+        let bundlePath = Bundle.main.bundleURL.path
+        guard bundlePath.hasPrefix("/Volumes/") else {
+            return false
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L("Move Hermes Agent to Applications")
+        alert.informativeText = L("Hermes Agent is running from a mounted disk image. Quit the app, copy HermesAgent.app to Applications, then open it from there so macOS can eject the disk image cleanly.")
+        alert.addButton(withTitle: L("Quit"))
+        alert.addButton(withTitle: L("Continue Anyway"))
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSApp.terminate(nil)
+            return true
+        }
+        return false
     }
 }

@@ -47,7 +47,7 @@ enum AppSettings {
 
     static var dataLocationURL: URL {
         let path = UserDefaults.standard.string(forKey: AppSettingKeys.dataLocation)
-        return URL(fileURLWithPath: path?.isEmpty == false ? path! : Paths.applicationSupportDirectory.path, isDirectory: true)
+        return URL(fileURLWithPath: path?.isEmpty == false ? path! : Paths.defaultDataDirectory.path, isDirectory: true)
     }
 
     static var checkForUpdatesAutomatically: Bool {

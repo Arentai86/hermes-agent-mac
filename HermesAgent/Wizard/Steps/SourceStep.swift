@@ -35,7 +35,7 @@ struct SourceStep: View {
         var descriptionKey: String {
             switch self {
             case .bundled: return "Run the Hermes Agent server bundled inside this .app. Recommended."
-            case .download: return "Download the latest Hermes Agent source from GitHub without pinning a version."
+            case .download: return "Download the latest Hermes Agent source from GitHub and reuse bundled dashboard assets if the source archive omits them."
             case .url: return "Paste a direct .tgz, .tar.gz, .tar, or .zip link to an Hermes Agent server archive."
             case .local: return "Pick an Hermes Agent server folder, zip, or tarball already on this Mac."
             }
@@ -187,7 +187,7 @@ struct SourceStep: View {
 
     private var downloadOptions: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(L("Will fetch the latest Hermes Agent source from GitHub. Python dependencies are prepared automatically on first launch if needed."))
+            Text(L("Will fetch the latest Hermes Agent source from GitHub. If GitHub does not include a built dashboard, the installer restores the bundled dashboard assets automatically. Python dependencies are prepared on first launch if needed."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
