@@ -1,0 +1,6 @@
+{
+  "version": "0.13.0",
+  "source": "local hermes-agent checkout",
+  "runtime": "hermes-dashboard",
+  "kind": "python"
+}

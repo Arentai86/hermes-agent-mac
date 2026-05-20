@@ -1,0 +1,19 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bundle placeholder runtime
+        run: SKIP_NODE_DOWNLOAD=1 SKIP_SERVER_DOWNLOAD=1 ./Scripts/bundle-runtime.sh
+      - name: Runtime smoke test
+        run: bash ./Scripts/smoke-test-runtime.sh
+      - name: Build
+        run: ./Scripts/build.sh
+

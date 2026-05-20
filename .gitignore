@@ -1,0 +1,15 @@
+.DS_Store
+.build/
+DerivedData/
+build/
+.module-cache/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+HermesAgent/Resources/runtime/server/.env
+HermesAgent/Resources/runtime/server/.venv/
+HermesAgent/Resources/runtime/server/__pycache__/
+cert.p12
+*.zip
+*.dmg

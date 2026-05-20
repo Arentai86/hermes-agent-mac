@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12_BASE64" | base64 --decode > cert.p12
+          security create-keychain -p tmp build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p tmp build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k tmp build.keychain
+
+      - name: Bundle runtime
+        env:
+          OPENCLAW_VERSION: ${{ github.ref_name }}
+          OPENCLAW_REPO: ${{ vars.OPENCLAW_REPO }}
+        run: ./Scripts/bundle-runtime.sh
+
+      - name: Build
+        run: ./Scripts/build.sh
+
+      - name: Sign app
+        env:
+          IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: ./Scripts/sign.sh
+
+      - name: Notarize app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+        run: ./Scripts/notarize.sh
+
+      - name: Build signed DMG
+        env:
+          IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          NOTARIZE_DMG: "1"
+        run: ./Scripts/make-dmg.sh
+
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: ./Scripts/appcast.sh
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" build/OpenClaw.dmg build/appcast/appcast.xml --generate-notes
+
+      - name: Publish appcast to gh-pages
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git switch gh-pages
+            git reset --hard origin/gh-pages
+          else
+            git switch --orphan gh-pages
+            git rm -rf . || true
+          fi
+          cp build/appcast/appcast.xml appcast.xml
+          git add appcast.xml
+          git commit -m "Update appcast for ${GITHUB_REF_NAME}" || echo "No changes to appcast"
+          git push origin gh-pages
+
+      - name: Cleanup signing material
+        if: always()
+        run: |
+          rm -f cert.p12
+          security delete-keychain build.keychain 2>/dev/null || true
+
