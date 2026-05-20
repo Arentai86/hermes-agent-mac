@@ -641,8 +641,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-log";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.5.3;
+				kind = exactVersion;
+				version = 1.6.4;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
